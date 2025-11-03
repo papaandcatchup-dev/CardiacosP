@@ -1,7 +1,6 @@
 {
   "name": "pulsoscardiacos-server",
   "version": "1.0.0",
-  "description": "Servidor Express para recibir datos del ESP32 y mostrarlos en la web",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
