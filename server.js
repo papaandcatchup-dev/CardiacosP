@@ -1,22 +1,42 @@
 const express = require('express');
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
-// Middleware para leer JSON
 app.use(express.json());
 
-// Ruta principal
+let ultimoEstado = {
+  estado: 'offline',
+  ip: null,
+  ultima: null,
+  senal: null
+};
+
 app.get('/', (req, res) => {
-  res.send('<h2>Servidor ESP32 en Node.js funcionando ✅</h2>');
+  res.send('Servidor de PulsosCardiacos activo 💓');
 });
 
-// Ruta donde el ESP32 enviará datos
-app.post('/data', (req, res) => {
-  console.log('📡 Datos recibidos del ESP32:', req.body);
-  res.sendStatus(200);
+app.post('/', (req, res) => {
+  const data = req.body;
+  console.log('📩 Datos recibidos:', data);
+
+  if (data.estado === 'online') {
+    ultimoEstado.estado = 'online';
+    ultimoEstado.ip = data.ip;
+    ultimoEstado.ultima = new Date().toLocaleString();
+  }
+
+  if (data.senal !== undefined) {
+    ultimoEstado.senal = data.senal;
+    ultimoEstado.ultima = new Date().toLocaleString();
+  }
+
+  res.status(200).json({ mensaje: 'Datos recibidos correctamente', estado: ultimoEstado });
 });
 
-// Iniciar servidor
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
+app.get('/estado', (req, res) => {
+  res.json(ultimoEstado);
+});
+
+app.listen(PORT, () => {
+  console.log(`✅ Servidor ejecutándose en el puerto ${PORT}`);
 });
