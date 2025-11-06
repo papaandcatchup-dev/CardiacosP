@@ -12,7 +12,9 @@ let ultimoEstado = {
   senal: null
 };
 
-// Servir página principal (HTML + JS) que consulta /estado periódicamente
+// Historial de BPM
+let historial = [];
+
 app.get('/', (req, res) => {
   res.send(`<!DOCTYPE html>
 <html lang="es">
@@ -26,14 +28,22 @@ app.get('/', (req, res) => {
     h1 { margin:0 0 8px; color:#d32f2f; }
     .valor { font-size:3.6rem; font-weight:700; color:#2e7d32; margin:12px 0; }
     .small { color:#666; font-size:0.95rem; }
+    #historial { margin-top:30px; text-align:left; max-width:400px; margin-left:auto; margin-right:auto; font-family:monospace; }
   </style>
 </head>
 <body>
+  <h1 style="margin-bottom:20px; color:#1565c0;">MONITOR DE PULSO CARDÍACO</h1>
+
   <div class="card">
     <h1>Latidos por minuto (BPM)</h1>
     <div class="valor" id="bpm">--</div>
     <div class="small">Última actualización: <span id="hora">--</span></div>
     <div style="margin-top:12px;"><small id="ip">IP: --</small></div>
+  </div>
+
+  <div id="historial">
+    <h2>Historial de BPM</h2>
+    <div id="historialDatos">Cargando...</div>
   </div>
 
   <script>
@@ -53,15 +63,28 @@ app.get('/', (req, res) => {
       }
     }
 
-    // Actualiza de inmediato y luego cada 5 segundos
+    async function actualizarHistorial() {
+      try {
+        const resp = await fetch('/historial');
+        const datos = await resp.json();
+        document.getElementById('historialDatos').innerHTML = datos.map(d => \`\${d.hora}: \${d.bpm} BPM\`).join('<br>');
+      } catch (err) {
+        console.error('Error al obtener historial:', err);
+        document.getElementById('historialDatos').textContent = 'No disponible';
+      }
+    }
+
     actualizarDatos();
-    setInterval(actualizarDatos, 5000);
+    actualizarHistorial();
+    setInterval(() => {
+      actualizarDatos();
+      actualizarHistorial();
+    }, 5000);
   </script>
 </body>
 </html>`);
 });
 
-// Ruta POST para recibir datos desde el ESP32
 app.post('/', (req, res) => {
   const data = req.body;
   console.log('Datos recibidos:', data);
@@ -75,17 +98,26 @@ app.post('/', (req, res) => {
   if (data.senal !== undefined) {
     ultimoEstado.senal = data.senal;
     ultimoEstado.ultima = new Date().toLocaleString();
+
+    historial.push({
+      bpm: data.senal,
+      hora: new Date().toLocaleTimeString()
+    });
+
+    if (historial.length > 20) historial.shift();
   }
 
-  // Respuesta con estado actualizado (200 OK)
   res.status(200).json({ mensaje: 'Datos recibidos correctamente', estado: ultimoEstado });
 });
 
-// Endpoint para que la página y otros clientes consulten el último estado
 app.get('/estado', (req, res) => {
   res.json(ultimoEstado);
 });
 
+app.get('/historial', (req, res) => {
+  res.json(historial);
+});
+
 app.listen(PORT, () => {
-  console.log(`Servidor ejecutándose en el puerto ${PORT}`);
+  console.log(\`Servidor ejecutándose en el puerto \${PORT}\`);
 });
